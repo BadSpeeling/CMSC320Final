@@ -1,0 +1,212 @@
+---
+title: "CMSC320 Final Project"
+author: "Eric"
+date: "April 10, 2018"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+We will be analyzing how effective the video game Out of the Park (OOTP) is at simulating a baseball season.  To do this, I have ran a simulation in the game from the years 2000 to 2018.  The game has a built-in feature where it will export many of it's important data files to a CSV file with headers on top, allowing for us to easily load the game data into an R dataframe.  We will use the Lahman sqlite database as the point of comparison.
+
+First, we will load the CSV files and connect to the Lahman database.
+
+``` {r}
+library(rvest)
+library(tidyverse)
+
+coaches <- read.csv('csv/coaches.csv')
+divisions <- read.csv('csv/divisions.csv')
+leagues <- read.csv('csv/leagues.csv')
+allstars <- read.csv('csv/league_history_all_star.csv')
+players <- read.csv('csv/players.csv')
+awards <- read.csv('csv/league_history.csv')
+batting_stats <- read.csv('csv/players_career_batting_stats.csv')
+pitching_stats <- read.csv('csv/players_career_pitching_stats.csv')
+teams <- read.csv('csv/teams.csv')
+team_history_record <- read.csv('csv/team_history_record.csv')
+team_history_financials <- read.csv('csv/team_history_financials.csv')
+
+lahman <- DBI::dbConnect(RSQLite::SQLite(), "lahman2016.sqlite")
+
+```
+
+#About The Dataframes
+
+For files about players the primary key will be player_id. For files about a team, the primary key will be team_id.  There are other variables that we can use to help pinpoint what we are searching for.  For player stats, there are various unhelpful stats saved such as pre-season and play-off stats.  Thanks to the variable split_id, any entity that has a value 1 in this column is a regular season batting line, which is what we are looking for.  The attribute year will also be usefull throughout for zero-ing in on a single year and for performing year-to-year analysis.  
+
+Linked here is a Wikipedia article that gives a brief rundown of common baseball statistics: [https://en.wikipedia.org/wiki/Baseball_statistics][1]
+
+#Data Analysis
+
+First, let's see how the simulated hit total compares to the real-life values.  We will look at the residual for each year for each player with atleast 50 hits in both the simulation and real-life for a given season.  This will eliminated players that did not play as many games as expected and also removes pitchers.
+
+```{sql run_query1, connection=lahman, output.var="lahman_hits"}
+select nameFirst as first_name, nameLast as last_name, H as hits, yearID as year_id
+from MASTER, Batting
+where MASTER.playerID = Batting.playerID and yearID >= 2000 and H > 50
+group by nameFirst, nameLast, yearID
+```
+
+```{r}
+library(ggplot2)
+
+hits_by_year <- players %>% inner_join(batting_stats, by = 'player_id') %>% 
+  filter(split_id == 1,h > 50) %>% select(player_id,first_name, last_name, sim_hits = h ,year_id = year)
+
+hits_difference <- hits_by_year %>% inner_join(lahman_hits, on = c('first_name', 'last_name', 'year_id'))
+
+hits_difference['dif_hits'] <- hits_difference['sim_hits'] - hits_difference['hits']
+
+hits_difference %>% ggplot(mapping=aes(x=dif_hits)) + geom_histogram(binwidth = 5)
+
+```
+
+Looking at the above histogram of the residuals, the simulation is quite good at simulating how many hits a player will get.  The histogram is slightly skewed to the right, which indicates that was a slight tendency to simulate more hits than a player actually got.
+
+Next lets look at how well the game simulated each season by computing their average positioning in their division
+
+```{sql run_query2, connection=lahman, output.var="lahman_pos"}
+select avg(Rank) as real_pos, name, teamID, franchID
+from Teams
+where yearID >= 2000
+group by teamID
+```
+
+```{r}
+
+sim_pos <- team_history_record %>% inner_join(teams, by = 'team_id') %>% 
+  select(team_id,historical_id, pos, year) %>% group_by(historical_id) %>% summarize(sim_pos=mean(pos)) 
+
+diff_pos <- sim_pos %>% inner_join(lahman_pos, by = c("historical_id"="teamID"))
+
+diff_pos['diff'] <- - diff_pos$sim_pos + diff_pos$real_pos
+
+diff_pos %>% select(diff,historical_id) %>% arrange(desc(diff))
+
+diff_pos %>% summarize(sd=sd(diff), mean=mean(diff))
+
+```
+
+Above we have the differences between divisional placings.  We can see that MIA was the best performer relative to their actual standings.  MIA is a considerable outlier here. With a mean of essentially zero and SD of about .56, MIA is over 3 SDs away.  No other team is over 2 SDs away!
+
+Next, let's look at what awards were won and by who.  First we will look at who won the MVP in both the AL and NL
+
+```{r}
+
+
+sim_awards <- awards %>% inner_join(players, by = c("best_hitter_id" = "player_id"))
+sim_awards$league <- ifelse(sim_awards$sub_league_id == 0, 'AL', 'NL')
+
+sim_awards %>% select(first_name, last_name, league, year)
+
+```
+
+There are quite a few pitchers winning the MVP.  As we can see below, there were 10 instances of pitchers winning MVP!  This is obviously too much.  In real life, the only pitchers to accomplish this from 2000-2016 were Justin Verlander and Clayton Kershaw.  In history there has only been around a dozen, so having close to that total in a 17 year simulation is a clear fault.
+
+```{r}
+print (sim_awards %>% left_join(pitching_stats, by = c("best_hitter_id" = "player_id", "year" = "year")) %>% filter(split_id == 1) %>% select(first_name, last_name) %>% nrow())
+```
+
+We will now create a data frame for batting stats with all the useless variables excluded.  
+
+```{r}
+
+trimed_batting_stats <- players %>% left_join (batting_stats, by=c('player_id'='player_id'))  %>% filter (split_id == 1) %>% filter(position.x != 1) %>% select(year, player_id, first_name, last_name, ab, h, k ,pa, d, t, hr, r, rbi, sb, cs, bb, ibb) %>% filter(ab!=0)
+
+```
+
+We now have all the counting stats that we will need.  However, it would be beneficial to include some rate statistics along with these counting stats.  We will use:
+
+BA -> h/ab
+OBP -> (h+bb+ibb)/(ab+bb+ibb)
+SLG -> h+d+2t+3hr
+HR% -> hr/ab
+BB% -> bb+ibb/pa
+K% -> k/pa
+ISO -> SLG-BA
+
+```{r}
+
+trimed_batting_stats <- trimed_batting_stats %>% mutate(BA=h/ab, OBP=(h+bb+ibb)/(ab+bb+ibb), SLG=(h+d+2*t+3*hr)/ab, HRpercent=hr/ab, BBpercent=(bb+ibb)/pa, Kpercent=k/pa)
+trimed_batting_stats <- trimed_batting_stats %>% mutate(ISO=SLG-BA)
+
+```
+
+Let's look at who had some of the best rate stats in the simulation.  Who had the best single season homerun-rate, given that they had atleast 300 at-bats?
+
+```{r}
+trimed_batting_stats %>% arrange(desc(HRpercent)) %>% filter (ab > 300) %>% slice(1:10) %>% select(year,first_name,last_name, HRpercent, hr)
+```
+
+It seems that in 2000 pitchers enjoyed giving up homeruns, as the two top seasons came from the 2000 season.
+
+Who averaged the most runs batted in?
+
+```{r}
+trimed_batting_stats %>% group_by(first_name, last_name) %>% summarize(avg_rbi = mean(rbi), num_years = n()) %>% arrange(desc(avg_rbi)) %>% head(n=10)
+
+```
+
+Continuing playing with the homerun totals, let's graph how many homeruns were hit in each year.
+
+``` {r}
+
+homers_by_year <- batting_stats %>% filter(split_id == 1) %>% group_by(year) %>% summarize(sim_homers=sum(hr))
+
+homers_by_year %>% ggplot(mapping=aes(x=year,y=sim_homers)) + geom_point() + geom_line()
+  
+```
+
+This graph seems to follow the true to life patterns of the steroid era and the flyball era.  Let's compare this tothe realife values to see how it does.
+
+```{sql run_query3, connection=lahman, output.var="lahman_hr"}
+select sum(HR) as actual_homers, yearID
+from Teams
+where yearID >= 2000
+group by yearID
+```
+
+We will now join these two data frames together.
+
+```{r}
+
+sim_and_real_hr_totals <- lahman_hr %>% left_join(homers_by_year, by=c('yearID'='year'))
+
+sim_and_real_hr_totals %>% ggplot(mapping=aes(x=yearID,y=sim_homers-actual_homers)) + geom_point() + geom_line()
+
+(sim_and_real_hr_totals$sim_homers-sim_and_real_hr_totals$actual_homers) %>% abs() %>% mean()
+
+```
+
+The game again did a good job! As calculated above, the simulation was off by 85 homers on average for each year.  While this might seem like a lot, when we consider this is spread over 30 teams, that's less than 3 homers per team that the game was off by!
+
+#Modeling and Prediction
+
+Now, let's do something a little more interesting. Let's build a model to predict if a player has had an All-star caliber season.  We can do this as we have the data for who was on the all-star team.  We can therefore create a binary variable for is a player was an all-star.  We can then train it on various stats to see what is the best set of statistics to train on.  We will only worry about hitters with this model.
+
+The trimed dataset we made earlier will be helpful for this.  Let's first look at the all-star dataframe
+
+```{r}
+allstars
+
+allstar_stats <- trimed_batting_stats %>% left_join (allstars, by=c("player_id"="all_star","year"))
+
+allstar_stats$was_all_star <- ifelse (is.na(allstar_stats$all_star_pos),0,1)
+
+allstar_stats_trimed <- allstar_stats %>% select(ab,h,d,t,hr,k,bb,ibb,pa,r,rbi,sb,BA,OBP,SLG,HRpercent,BBpercent,Kpercent,ISO,was_all_star)
+
+```
+
+We now have every players stats for each year and whether or not they were an all-star in the dataframe allstar_stats_trimed.  Here's an example of what it looks like, with BA, OBP and SLG included:
+
+```{r}
+
+allstar_stats_trimed %>% sample_n(10) %>% select(BA,OBP,SLG,was_all_star)
+
+traing_set <- allstar_stats_trimed %>% sample_frac(.1)
+model <- glm(data=traing_set, was_all_star~(BA+OBP+SLG))
+
+predict(model, allstar_stats_trimed %>% sample_frac(.1))
+
+```

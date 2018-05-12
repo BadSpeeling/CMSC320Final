@@ -1,0 +1,64 @@
+league_id,start_date,type,event_over,deleted,name,gender,needs_human_action
+100,"2017-11-4",16,0,0,"Offseason starts",0,0
+100,"2017-11-12",25,0,0,"Great Glove Award announced",0,0
+100,"2017-11-13",32,0,0,"Reliever of the Year Award announced",0,0
+100,"2017-11-14",31,0,0,"Platinum Stick Award announced",0,0
+100,"2017-11-15",24,0,0,"Rookie of the Year Award announced",0,0
+100,"2017-11-16",21,0,0,"Manager of the Year announced",0,0
+100,"2017-11-17",23,0,0,"Cy Young Award announced",0,0
+100,"2017-11-18",22,0,0,"Most Valuable Player Award announced",0,0
+100,"2018-2-2",10,0,0,"Preseason begins",0,0
+100,"2018-3-4",11,0,0,"Spring Training Begins",0,0
+100,"2018-4-8",12,0,0,"OPENING DAY",0,0
+100,"2018-4-16",38,0,0,"Player of the Week Award Announcement, Week no. 16",0,0
+100,"2018-4-23",38,0,0,"Player of the Week Award Announcement, Week no. 17",0,0
+100,"2018-4-30",38,0,0,"Player of the Week Award Announcement, Week no. 18",0,0
+100,"2018-5-1",35,0,0,"Batter of the Month Award Announcement",0,0
+100,"2018-5-1",36,0,0,"Pitcher of the Month Award Announcement",0,0
+100,"2018-5-1",37,0,0,"Rookie of the Month Award Announcement",0,0
+100,"2018-5-7",38,0,0,"Player of the Week Award Announcement, Week no. 19",0,0
+100,"2018-5-14",38,0,0,"Player of the Week Award Announcement, Week no. 20",0,0
+100,"2018-5-21",38,0,0,"Player of the Week Award Announcement, Week no. 21",0,0
+100,"2018-5-28",38,0,0,"Player of the Week Award Announcement, Week no. 22",0,0
+100,"2018-6-1",35,0,0,"Batter of the Month Award Announcement",0,0
+100,"2018-6-1",36,0,0,"Pitcher of the Month Award Announcement",0,0
+100,"2018-6-1",37,0,0,"Rookie of the Month Award Announcement",0,0
+100,"2018-6-4",38,0,0,"Player of the Week Award Announcement, Week no. 23",0,0
+100,"2018-6-11",38,0,0,"Player of the Week Award Announcement, Week no. 24",0,0
+100,"2018-6-18",38,0,0,"Player of the Week Award Announcement, Week no. 25",0,0
+100,"2018-6-25",38,0,0,"Player of the Week Award Announcement, Week no. 26",0,0
+100,"2018-7-1",35,0,0,"Batter of the Month Award Announcement",0,0
+100,"2018-7-1",36,0,0,"Pitcher of the Month Award Announcement",0,0
+100,"2018-7-1",37,0,0,"Rookie of the Month Award Announcement",0,0
+100,"2018-7-2",38,0,0,"Player of the Week Award Announcement, Week no. 27",0,0
+100,"2018-7-9",38,0,0,"Player of the Week Award Announcement, Week no. 28",0,0
+100,"2018-7-16",38,0,0,"Player of the Week Award Announcement, Week no. 29",0,0
+100,"2018-7-23",38,0,0,"Player of the Week Award Announcement, Week no. 30",0,0
+100,"2018-7-30",38,0,0,"Player of the Week Award Announcement, Week no. 31",0,0
+100,"2018-8-1",35,0,0,"Batter of the Month Award Announcement",0,0
+100,"2018-8-1",36,0,0,"Pitcher of the Month Award Announcement",0,0
+100,"2018-8-1",37,0,0,"Rookie of the Month Award Announcement",0,0
+100,"2018-8-6",38,0,0,"Player of the Week Award Announcement, Week no. 32",0,0
+100,"2018-8-13",38,0,0,"Player of the Week Award Announcement, Week no. 33",0,0
+100,"2018-8-20",38,0,0,"Player of the Week Award Announcement, Week no. 34",0,0
+100,"2018-8-27",38,0,0,"Player of the Week Award Announcement, Week no. 35",0,0
+100,"2018-9-1",35,0,0,"Batter of the Month Award Announcement",0,0
+100,"2018-9-1",36,0,0,"Pitcher of the Month Award Announcement",0,0
+100,"2018-9-1",37,0,0,"Rookie of the Month Award Announcement",0,0
+100,"2018-9-3",38,0,0,"Player of the Week Award Announcement, Week no. 36",0,0
+100,"2018-9-10",38,0,0,"Player of the Week Award Announcement, Week no. 37",0,0
+100,"2018-9-17",38,0,0,"Player of the Week Award Announcement, Week no. 38",0,0
+100,"2018-9-24",38,0,0,"Player of the Week Award Announcement, Week no. 39",0,0
+100,"2018-10-1",38,0,0,"Player of the Week Award Announcement, Week no. 40",0,0
+100,"2018-10-1",35,0,0,"Batter of the Month Award Announcement",0,0
+100,"2018-10-1",36,0,0,"Pitcher of the Month Award Announcement",0,0
+100,"2018-10-1",37,0,0,"Rookie of the Month Award Announcement",0,0
+100,"2018-10-7",13,0,0,"Regular Season Ends",0,0
+100,"2018-5-28",29,0,0,"2018 All-Star Voting Begins",0,0
+100,"2018-1-3",30,0,0,"Hall of Fame Voting Results",0,0
+100,"2017-11-19",33,0,0,"Hall of Fame Voting Begins",0,0
+100,"2018-7-15",14,0,0,"2018 All-Star Teams announced",0,0
+100,"2018-7-17",20,0,0,"2018 All-Star Game",0,0
+100,"2018-10-9",15,0,0,"PLAYOFFS BEGIN",0,0
+100,"2014-9-29",15,0,1,"2014 PLAYOFFS BEGIN",0,0
+100,"2012-10-6",15,0,1,"2012 PLAYOFFS BEGIN",0,0
