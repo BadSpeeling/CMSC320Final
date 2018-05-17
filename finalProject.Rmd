@@ -90,7 +90,7 @@ diff_pos %>% summarize(sd=sd(diff), mean=mean(diff))
 
 Above we have the differences between divisional placings.  We can see that MIA was the best performer relative to their actual standings.  MIA is a considerable outlier here. With a mean of essentially zero and SD of about .56, MIA is over 3 SDs away.  No other team is over 2 SDs away!
 
-Next, let's look at what awards were won and by who.  First we will look at who won the MVP in both the AL and NL
+Next, let's look at what awards were won and by who. Let's look at who won the MVP in both the AL and NL
 
 ```{r}
 
@@ -188,7 +188,7 @@ Now, let's do something a little more interesting. Let's build a model to predic
 The trimed dataset we made earlier will be helpful for this.  Let's first look at the all-star dataframe
 
 ```{r}
-allstars
+allstars %>% head(10)
 
 allstar_stats <- trimed_batting_stats %>% left_join (allstars, by=c("player_id"="all_star","year"))
 
@@ -202,11 +202,162 @@ We now have every players stats for each year and whether or not they were an al
 
 ```{r}
 
-allstar_stats_trimed %>% sample_n(10) %>% select(BA,OBP,SLG,was_all_star)
+library(dplyr)
+library(broom)
+library(ggplot2)
 
-traing_set <- allstar_stats_trimed %>% sample_frac(.1)
-model <- glm(data=traing_set, was_all_star~(BA+OBP+SLG))
-
-predict(model, allstar_stats_trimed %>% sample_frac(.1))
+allstar_stats_trimed %>% select(BA,OBP,SLG) %>% sample_n(10)
 
 ```
+
+Now let's train a logistic regresssion as a sample.  To keep it simple, we will look at the classic triple line slash, which is a player's batting average, on base percentage, and slugging percentage.
+
+```{r}
+allstar_stats_trimed <- allstar_stats_trimed %>% group_by(was_all_star)
+
+traing_set <- allstar_stats_trimed %>% sample_n(100)
+model <- glm(data=traing_set, was_all_star~(BA+OBP+SLG), family=binomial)
+
+model %>% tidy() %>% knitr::kable(digits=4)
+
+```
+
+
+```{r}
+
+traing_set <- allstar_stats_trimed %>% sample_n(100) %>% filter(ab > 100)
+model <- glm(data=traing_set, was_all_star~(OBP+SLG), family=binomial)
+
+model %>% tidy() %>% knitr::kable(digits=4)
+
+test_set <- allstar_stats_trimed %>% ungroup() %>% filter(ab > 100) %>% sample_n(100)
+prediction <- as.vector(ifelse(predict(model, test_set %>% select(OBP,SLG)) >= 0, 1, 0))
+test_set$pred <- prediction
+
+test_set %>% select(pred,was_all_star) %>% head(10)
+
+```
+
+By the eye test this does not seem to be a very good model.  However, let's write a loss function to calculate it exactly.
+
+```{r}
+loss_function <- function (vector1, vector2) {
+  
+  vector1 <- as.vector(vector1)
+  vector2 <- as.vector(vector2)
+  
+  correct <- 0.0
+  
+  for (i in 1:length(vector1)) {
+    if (vector1[i] == vector2[i]) {
+      correct <- correct+1.0    
+    }
+  }
+  
+  return (correct/length(vector1))
+  
+}
+```
+
+This will compute the percent of correct classifications.
+
+```{r}
+
+loss_function(test_set$was_all_star, test_set$pred)
+
+```
+
+While this loss seems good, it is largely being padding by easy no predictions. The first thing that can improve our predictions is by determining which set of attributes if best at classification.  However, with only the statistics at our disposal there is a degree of noise inside all-star selection.  While a player's statistics are crucial to determining if they are an all-star, that is not the only factor.  Values that we do not consider here that are taken into account in the simulation are a player's national popularity, the team they play for's record and most importantly the size of their fan base.  In real life it is frequent for an undeserving player to make the allstar team for one or more of these reasons with mediocre stats.  Despite this, there is one heuristic that we can include that would improve classification: the position of a player.  At positions such as shortstop, second and center field a team is willing to sacrifice hitting in favor of defense.  Therefore, the bar for all-star level production at positions where defense is at a premieum is lower.  Consequently, positions where defense is less important, such a first and the corner outfield positions, the bar for all-star level production is higher.  While this seems to be a significantly better classification method, we do have to consider the extra cost of having more entities to train the model with.  There is another another issue with classifying with position.  The only dataframe that stores the position of a player is players.csv, which only contains player data for the current year and not previous year.  Therefore we have no means of telling what position a player was at for the given season. 
+
+First we will test which set of 3 attributes gives the best classifier.  Unfortunatley, since we have 19 variables we would have 969 sets of classifiers to choose from.  Therefore, we will test out 5 different ones to get a taste of the difference.
+
+```{r}
+
+traing_set <- allstar_stats_trimed %>% sample_n(500) %>% filter(ab > 100)
+test_set <- allstar_stats_trimed %>% ungroup() %>% filter(ab > 100) %>% sample_n(500)
+
+```
+
+I will be using the same training set and test set for each classifier.
+
+```{r}
+
+model1 <- glm(data=traing_set, was_all_star~(hr+rbi+r), family=binomial)
+prediction1 <- as.vector(ifelse(predict(model1, test_set %>% select(hr,rbi,r)) >= 0, 1, 0))
+
+model2 <- glm(data=traing_set, was_all_star~(h+hr+k), family=binomial)
+prediction2 <- as.vector(ifelse(predict(model2, test_set %>% select(h,hr,k)) >= 0, 1, 0))
+
+model3 <- glm(data=traing_set, was_all_star~(HRpercent+BBpercent+Kpercent), family=binomial)
+prediction3 <- as.vector(ifelse(predict(model3, test_set %>% select(HRpercent,BBpercent,Kpercent)) >= 0, 1, 0))
+
+model4 <- glm(data=traing_set, was_all_star~(OBP+SLG+h), family=binomial)
+prediction4 <- as.vector(ifelse(predict(model4, test_set %>% select(OBP,SLG,h)) >= 0, 1, 0))
+
+model5 <- glm(data=traing_set, was_all_star~(bb+d+ISO), family=binomial)
+prediction5 <- as.vector(ifelse(predict(model5, test_set %>% select(bb,d,ISO)) >= 0, 1, 0))
+
+loss_function(test_set$was_all_star, prediction1)
+loss_function(test_set$was_all_star, prediction2)
+loss_function(test_set$was_all_star, prediction3)
+loss_function(test_set$was_all_star, prediction4)
+loss_function(test_set$was_all_star, prediction5)
+```
+
+The models seem to do about the same.  To test this, let's run this multiple times and graph the results.
+
+```{r}
+
+times = 10
+
+stats <- c()
+type <- c()
+
+for (i in 1:times) {
+  traing_set <- allstar_stats_trimed %>% sample_n(500) %>% filter(ab > 100)
+  test_set <- allstar_stats_trimed %>% ungroup() %>% filter(ab > 100) %>% sample_n(500)
+  model1 <- glm(data=traing_set, was_all_star~(hr+rbi+r), family=binomial)
+  prediction1 <- as.vector(ifelse(predict(model1, test_set %>% select(hr,rbi,r)) >= 0, 1, 0))
+  
+  model2 <- glm(data=traing_set, was_all_star~(h+hr+k), family=binomial)
+  prediction2 <- as.vector(ifelse(predict(model2, test_set %>% select(h,hr,k)) >= 0, 1, 0))
+  
+  model3 <- glm(data=traing_set, was_all_star~(HRpercent+BBpercent+Kpercent), family=binomial)
+  prediction3 <- as.vector(ifelse(predict(model3, test_set %>% select(HRpercent,BBpercent,Kpercent)) >= 0, 1, 0))
+  
+  model4 <- glm(data=traing_set, was_all_star~(OBP+SLG+h), family=binomial)
+  prediction4 <- as.vector(ifelse(predict(model4, test_set %>% select(OBP,SLG,h)) >= 0, 1, 0))
+  
+  model5 <- glm(data=traing_set, was_all_star~(bb+d+ISO), family=binomial)
+  prediction5 <- as.vector(ifelse(predict(model5, test_set %>% select(bb,d,ISO)) >= 0, 1, 0))
+  
+  stats <- append(stats,loss_function(test_set$was_all_star, prediction1))
+  stats <- append(stats,loss_function(test_set$was_all_star, prediction2))
+  stats <- append(stats,loss_function(test_set$was_all_star, prediction3))
+  stats <- append(stats,loss_function(test_set$was_all_star, prediction4))
+  stats <- append(stats,loss_function(test_set$was_all_star, prediction5))
+  
+  type <- append(type,1)
+  type <- append(type,2)
+  type <- append(type,3)
+  type <- append(type,4)
+  type <- append(type,5)
+
+  
+}
+
+frm <- as.data.frame(stats)
+frm$lbl <- type
+
+
+frm %>% ggplot(mapping=aes(x=lbl,y=stats)) + geom_point()
+
+```
+
+In the graph above we can see the performance of each classifier, which I ran 10 times to help eliminate randomness.  The classifier that focused on percentages was by far the worst.  Out of the 5, classifier 2 and 4, which focused on OBP, SLG, and hits seems to be the best.
+
+#Summary
+
+In the first half of this paper we looked at how the baseball game Out of the Park Baseball 2018 performed at simulated the 2000-2016 baseball seasons relative to the actual 2000-2016 baseball seasons.  Then we looked at how the divisional placings compared to real life.  We found that the mean was close to 0, and the standard deviation was around 1/2. We looked at the number of hits players got in a season, which the simulation slightly tended to overestimate.  We then looked at the MVP awards that were given out, and concluded that far too many were given to pitchers.  In the last part of the data analysis we looked at how many homers were hit each year collectively compared to real life.  By plotting a graph of the outcomes we saw that there was a fluctuation between over and underestimated total homeruns by about 100-150, but concluded that this is not as significant as it would seem when considering it spread over the 30 professional teams.
+
+After that we created a model to predict whether a player had an all-star caliber season.  To do this we first created a dataframe with all the uneccesarry attributes removed and created some new attributes.  We then performed a logistic regression on batting average, on base percentage and slugging percentage.  To see how it performed we calculated the percentage of correct predictions made, finding that we could correctly predict around 80% of cases.  While 80% seems good, we were then able to identify potential sources of noise that prevent the model from doing better.  We then played around with different combinations of attributes to see what would provide the best model.  However, we realized that this was unfeasible as there were too many attribute combinations to try.  We therefore settled on 5 random combinations of atrributes and plotted the results to see how they did compared to each other.     
